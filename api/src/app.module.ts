@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SessionModule } from './modules/sessions/session.module';
+import { ReservationModule } from './modules/reservations/reservation.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SessionModule } from './modules/sessions/session.module';
       synchronize: true,
     }),
     SessionModule,
+    ReservationModule,
   ],
 })
 export class AppModule {}
