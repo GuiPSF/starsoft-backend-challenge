@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SessionModule } from './session/session.module';
-import { SeatModule } from './seat/seat.module';
+import { SessionModule } from './modules/session/session.module';
+import { SeatModule } from './modules/seats/seat.module';
 
 @Module({
   imports: [SessionModule, SeatModule],
