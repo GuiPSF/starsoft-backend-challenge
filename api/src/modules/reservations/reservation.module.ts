@@ -8,6 +8,7 @@ import { CreateReservationUseCase } from './application/create-reservation.useca
 import { ExpireReservationsJob } from './application/expire-reservations.job';
 import { RabbitPublisher } from '../../infra/messaging/rabbitmq.publisher';
 import { RedisService } from '../../infra/redis/redis.service';
+import { ConfirmPaymentUseCase } from './application/confirm-payment.usecase';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { RedisService } from '../../infra/redis/redis.service';
   controllers: [ReservationController],
   providers: [
     CreateReservationUseCase,
+    ConfirmPaymentUseCase,
     ExpireReservationsJob,
     RabbitPublisher,
     RedisService,
