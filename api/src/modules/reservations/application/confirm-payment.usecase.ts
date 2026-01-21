@@ -8,6 +8,8 @@ import { DataSource } from 'typeorm';
 import { Reservation } from '../entities/reservation.entity';
 import { Seat } from '../../sessions/entities/seat.entity';
 import { RabbitPublisher } from '../../../infra/messaging/rabbitmq.publisher';
+import { Session } from '../../sessions/entities/session.entity';
+import { Sale } from '../../sales/entities/sale.entity';
 
 @Injectable()
 export class ConfirmPaymentUseCase {
@@ -40,7 +42,7 @@ export class ConfirmPaymentUseCase {
 
       // 3) Não confirma se já passou do tempo
       if (reservation.expiresAt <= now) {
-        // opcional: marcar como EXPIRED aqui também (defensivo)
+        // defensivo: marca expired
         await manager.update(
           Reservation,
           { id: reservation.id, status: 'PENDING' },
@@ -73,17 +75,17 @@ export class ConfirmPaymentUseCase {
 
       const notReserved = seats.find((s) => s.status !== 'RESERVED');
       if (notReserved) {
-        // Se alguém já vendeu/alterou, não confirma
         throw new ConflictException('Seats are not reserved anymore');
       }
 
-      // 6) Confirma e vende
+      // 6) Confirma reserva
       await manager.update(
         Reservation,
         { id: reservation.id, status: 'PENDING' },
         { status: 'CONFIRMED' },
       );
 
+      // 7) Marca assentos como SOLD
       await manager
         .createQueryBuilder()
         .update(Seat)
@@ -91,10 +93,41 @@ export class ConfirmPaymentUseCase {
         .where('id = ANY(:ids)', { ids: seatIds })
         .execute();
 
+      // 8) Cria Sale (idempotente por reservationId)
+      const session = await manager.findOne(Session, {
+        where: { id: reservation.sessionId },
+      });
+
+      if (!session) {
+        throw new ConflictException('Session not found');
+      }
+
+      const totalPaidCents = session.priceCents * seatIds.length;
+
+      const existingSale = await manager.findOne(Sale, {
+        where: { reservationId: reservation.id },
+      });
+
+      if (!existingSale) {
+        const sale = manager.create(Sale, {
+          reservationId: reservation.id,
+          sessionId: reservation.sessionId,
+          userId: reservation.userId,
+          totalPaidCents,
+          paymentRef: paymentRef ?? null,
+        });
+
+        try {
+          await manager.save(Sale, sale);
+        } catch (e: any) {
+          // Se UNIQUE(reservationId) estourar por corrida, trata como idempotente
+        }
+      }
+
       return { status: 'CONFIRMED' as const, reservation, seatIds };
     });
 
-    // 7) Evento fora da transação
+    // 9) Evento fora da transação
     if (result.status === 'CONFIRMED') {
       await this.publisher.publish('payment.confirmed', {
         reservationId,
