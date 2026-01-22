@@ -37,6 +37,8 @@ export class RabbitAuditConsumer implements OnModuleInit, OnModuleDestroy {
       try {
         const payload = JSON.parse(raw);
 
+        //throw new Error('TEST_FAIL');
+
         logger.info({ event: routingKey, payload }, 'rabbit_event_received');
 
         this.channel!.ack(msg);
