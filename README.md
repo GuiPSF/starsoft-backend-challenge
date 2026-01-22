@@ -124,6 +124,10 @@ POST /sessions
 - Em caso de erro, o consumidor aplica **retry com backoff exponencial** (1s → 5s → 15s) usando filas com TTL.
 - Após exceder as tentativas, a mensagem é enviada para **DLQ**.
 
+#### Processamento em Batch
+- O consumer `cinema.audit` processa mensagens em **lotes** (ex.: 20 mensagens ou 1s), mantendo **ACK manual** e integrando com **Retry/DLQ**.
+
+
 ### Testes
 
 #### E2E - Concorrência
@@ -223,7 +227,7 @@ GET /users/{userId}/purchases
 
 - Migrations não foram utilizadas inicialmente (uso de `synchronize: true` em dev)
 - Não há autenticação/autorização
-- Pagamento é simulados
+- Pagamento é simulado
 Essas decisões foram tomadas para priorizar o **core do problema proposto**
 
 ---

@@ -9,6 +9,13 @@ export class RabbitAuditConsumer implements OnModuleInit, OnModuleDestroy {
   private conn?: amqp.Connection;
   private channel?: amqp.Channel;
 
+  private readonly BATCH_SIZE = 20;
+  private readonly FLUSH_INTERVAL_MS = 1000;
+
+  private buffer: amqp.ConsumeMessage[] = [];
+  private flushTimer?: NodeJS.Timeout;
+  private flushing = false;
+
   private readonly EVENTS_EXCHANGE = 'cinema.events';
   private readonly AUDIT_QUEUE = 'cinema.audit';
 
@@ -26,31 +33,65 @@ export class RabbitAuditConsumer implements OnModuleInit, OnModuleDestroy {
 
     await this.setupTopology();
 
-    await this.channel.prefetch(10);
+    await this.channel.prefetch(50);
+
+    this.flushTimer = setInterval(() => {
+      void this.flush();
+    }, this.FLUSH_INTERVAL_MS);
+
+    this.flushTimer.unref?.();
 
     await this.channel.consume(this.AUDIT_QUEUE, async (msg) => {
       if (!msg) return;
 
-      const routingKey = msg.fields.routingKey;
-      const raw = msg.content.toString();
+      this.buffer.push(msg);
 
-      try {
-        const payload = JSON.parse(raw);
-
-        //throw new Error('TEST_FAIL');
-
-        logger.info({ event: routingKey, payload }, 'rabbit_event_received');
-
-        this.channel!.ack(msg);
-      } catch (err) {
-        await this.handleFailure(msg, err);
+      if (this.buffer.length >= this.BATCH_SIZE) {
+        await this.flush();
       }
     });
 
     logger.info(
-      { queue: this.AUDIT_QUEUE, dlq: this.DLQ_QUEUE, retryDelays: this.RETRY_DELAYS },
+      {
+        queue: this.AUDIT_QUEUE,
+        dlq: this.DLQ_QUEUE,
+        retryDelays: this.RETRY_DELAYS,
+        batchSize: this.BATCH_SIZE,
+        flushIntervalMs: this.FLUSH_INTERVAL_MS,
+      },
       'rabbit_audit_consumer_started',
     );
+  }
+
+  private async flush() {
+    if (!this.channel) return;
+    if (this.flushing) return;
+    if (this.buffer.length === 0) return;
+
+    this.flushing = true;
+
+    const batch = this.buffer.splice(0, this.buffer.length);
+
+    try {
+      for (const msg of batch) {
+        const routingKey = msg.fields.routingKey;
+        const raw = msg.content.toString();
+
+        try {
+          const payload = JSON.parse(raw);
+
+          logger.info({ event: routingKey, payload }, 'rabbit_event_received');
+
+          this.channel.ack(msg);
+        } catch (err) {
+          await this.handleFailure(msg, err);
+        }
+      }
+
+      logger.debug({ size: batch.length }, 'rabbit_batch_flushed');
+    } finally {
+      this.flushing = false;
+    }
   }
 
   private async setupTopology() {
@@ -127,35 +168,25 @@ export class RabbitAuditConsumer implements OnModuleInit, OnModuleDestroy {
         'x-original-routing-key': routingKey,
       };
 
-      this.channel.publish(
-        this.RETRY_EXCHANGE,
-        String(delay),
-        msg.content,
-        {
-          persistent: true,
-          contentType: msg.properties.contentType ?? 'application/json',
-          headers,
-        },
-      );
+      this.channel.publish(this.RETRY_EXCHANGE, String(delay), msg.content, {
+        persistent: true,
+        contentType: msg.properties.contentType ?? 'application/json',
+        headers,
+      });
 
       this.channel.ack(msg);
 
-      logger.info(
-        { event: routingKey, attempts, delay },
-        'rabbit_event_scheduled_for_retry',
-      );
+      logger.info({ event: routingKey, attempts, delay }, 'rabbit_event_scheduled_for_retry');
       return;
     }
 
     this.channel.nack(msg, false, false);
 
-    logger.error(
-      { event: routingKey, attempts, raw },
-      'rabbit_event_sent_to_dlq',
-    );
+    logger.error({ event: routingKey, attempts, raw }, 'rabbit_event_sent_to_dlq');
   }
 
   async onModuleDestroy() {
+    if (this.flushTimer) clearInterval(this.flushTimer);
     await this.channel?.close().catch(() => undefined);
     await this.conn?.close().catch(() => undefined);
   }
