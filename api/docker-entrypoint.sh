@@ -1,17 +1,15 @@
 #!/bin/sh
 set -e
 
-if [ -f yarn.lock ]; then
-  echo "Detected yarn.lock → using yarn"
-  corepack enable
-  yarn install --frozen-lockfile
-  exec yarn start:dev
-elif [ -f package-lock.json ]; then
-  echo "Detected package-lock.json → using npm"
-  npm ci
-  exec npm run start:dev
-else
-  echo "No lockfile found. Falling back to npm install"
-  npm install
-  exec npm run start:dev
+cd /app
+
+if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+  echo "node_modules missing/empty -> installing dependencies..."
+  if [ -f yarn.lock ]; then
+    yarn install --frozen-lockfile
+  else
+    npm ci || npm install
+  fi
 fi
+
+exec "$@"
