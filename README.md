@@ -124,6 +124,20 @@ POST /sessions
 - Em caso de erro, o consumidor aplica **retry com backoff exponencial** (1s → 5s → 15s) usando filas com TTL.
 - Após exceder as tentativas, a mensagem é enviada para **DLQ**.
 
+### Testes
+
+#### E2E - Concorrência
+Este projeto inclui um teste E2E que simula **10 usuários** tentando reservar o **mesmo assento** simultaneamente.
+Resultado esperado: **1 sucesso (201/200)** + **9 falhas (409)**.
+
+Rodar
+
+``` bash
+docker compose up --build -d
+cd api
+npm run test:e2e
+```
+
 
 ---
 
@@ -209,7 +223,6 @@ GET /users/{userId}/purchases
 
 - Migrations não foram utilizadas inicialmente (uso de `synchronize: true` em dev)
 - Não há autenticação/autorização
-- Não há testes automatizados
 - Pagamento é simulados
 Essas decisões foram tomadas para priorizar o **core do problema proposto**
 
@@ -217,7 +230,6 @@ Essas decisões foram tomadas para priorizar o **core do problema proposto**
 
 ## 8. Melhorias Futuras
 - Migrations versionadas com TypeORM
-- Testes de concorrência automatizados
 - Idempotency-Key no `confirm-payment`
 - Observabilidade com métricas (Prometheus)
 - Autenticação JWT
