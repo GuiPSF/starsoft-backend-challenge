@@ -41,6 +41,9 @@ A solução foi pensada com foco em **robustez**, **escalabilidade horizontal** 
 - Logging estruturado em JSON
 - Níveis: `DEBUG`, `INFO`, `WARN`, `ERROR`
 
+### Documentação da API
+- Swagger UI
+
 ---
 
 ## 3. Como Executar
