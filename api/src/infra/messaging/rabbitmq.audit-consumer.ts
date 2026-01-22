@@ -1,5 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import * as amqp from 'amqplib';
+import { logger } from '../logger/logger';
+
 
 @Injectable()
 export class RabbitAuditConsumer implements OnModuleInit, OnModuleDestroy {
@@ -23,19 +25,25 @@ export class RabbitAuditConsumer implements OnModuleInit, OnModuleDestroy {
     await this.channel.consume(queue, async (msg) => {
       if (!msg) return;
 
-      try {
-        const routingKey = msg.fields.routingKey;
-        const payload = JSON.parse(msg.content.toString());
+        try {
+            const routingKey = msg.fields.routingKey;
+            const payload = JSON.parse(msg.content.toString());
 
-        // processamento mínimo (mas real): log estruturado
-        console.log(JSON.stringify({ level: 'INFO', event: routingKey, payload }));
+            logger.info(
+                { event: routingKey, payload },
+                'rabbit_event_received',
+        );
 
-        this.channel!.ack(msg);
-      } catch (err) {
-        console.error(JSON.stringify({ level: 'ERROR', err: String(err) }));
-        // tenta de novo (requeue)
-        this.channel!.nack(msg, false, true);
-      }
+            this.channel!.ack(msg);
+        } catch (err) {
+            logger.error(
+                { err, raw: msg.content.toString() },
+                'rabbit_event_failed',
+        );
+
+            this.channel!.nack(msg, false, true);
+        }
+
     });
   }
 
