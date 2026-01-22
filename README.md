@@ -137,7 +137,8 @@ Implementação: cache de resposta no Redis com TTL.
 - O consumer `cinema.audit` processa mensagens em **lotes** (ex.: 20 mensagens ou 1s), mantendo **ACK manual** e integrando com **Retry/DLQ**.
 
 
-### Testes
+### Testes (dentro do Docker)
+Os testes devem ser executados dentro do container para evitar conflitos.
 
 #### E2E - Concorrência
 Este projeto inclui um teste E2E que simula **10 usuários** tentando reservar o **mesmo assento** simultaneamente.
@@ -146,9 +147,8 @@ Resultado esperado: **1 sucesso (201/200)** + **9 falhas (409)**.
 Rodar
 
 ``` bash
-docker compose up --build -d
-cd api
-npm run test:e2e
+docker compose up --build
+docker compose exec api npm run test:e2e
 ```
 
 #### Unit tests
@@ -157,8 +157,7 @@ Testes unitários com Jest (mocks para dependências externas)
 Rodar
 
 ``` bash
-cd api
-npm run test
+docker compose exec api npm test
 ```
 
 
