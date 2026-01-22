@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SessionModule } from './modules/sessions/session.module';
 import { ReservationModule } from './modules/reservations/reservation.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { RabbitAuditConsumer } from './infra/messaging/rabbitmq.audit-consumer';
 
 @Module({
   imports: [
@@ -20,5 +21,6 @@ import { SalesModule } from './modules/sales/sales.module';
     ReservationModule,
     SalesModule,
   ],
+  providers: [RabbitAuditConsumer],
 })
 export class AppModule {}
