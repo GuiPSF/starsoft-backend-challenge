@@ -111,11 +111,18 @@ POST /sessions
 - Atualizações em lote (`WHERE id = ANY(...)`)
 
 ### 4.1 Diferenciais Implementados
+
 #### Documentação da API
 - Swagger/OpenAPI completo com exemplos reais em todos os DTOs
+
 #### Rate Limiting
 - Rate limiting global por IP implementado com `@nestjs/throttler` (ex.: 120 req/min).
 - Resposta padrão: HTTP 429 (Too Many Requests).
+
+#### Mensageria: DLQ e Retry inteligente
+- Implementado consumo confiável com **ACK manual**.
+- Em caso de erro, o consumidor aplica **retry com backoff exponencial** (1s → 5s → 15s) usando filas com TTL.
+- Após exceder as tentativas, a mensagem é enviada para **DLQ**.
 
 
 ---
@@ -212,7 +219,6 @@ Essas decisões foram tomadas para priorizar o **core do problema proposto**
 - Migrations versionadas com TypeORM
 - Testes de concorrência automatizados
 - Idempotency-Key no `confirm-payment`
-- Dead-letter queues (DLQ)
 - Observabilidade com métricas (Prometheus)
 - Autenticação JWT
 - Frontend para visualização das sessões
