@@ -21,9 +21,10 @@ export class ListUserPurchasesUseCase {
       saleId: s.id,
       reservationId: s.reservationId,
       sessionId: s.sessionId,
+      userId: s.userId,
       totalPaidCents: s.totalPaidCents,
       paymentRef: s.paymentRef,
-      soldAt: s.soldAt,
-    }));
+      soldAt: s.soldAt.toISOString(),
+}));
   }
 }

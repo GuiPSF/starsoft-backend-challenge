@@ -1,9 +1,11 @@
 import { Body, Controller, Param, Post } from '@nestjs/common';
+import { ApiConflictResponse, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateReservationDto } from './application/dto/create-reservation.dto';
-import { CreateReservationUseCase } from './application/create-reservation.usecase';
 import { ConfirmPaymentDto } from './application/dto/confirm-payment.dto';
+import { CreateReservationUseCase } from './application/create-reservation.usecase';
 import { ConfirmPaymentUseCase } from './application/confirm-payment.usecase';
 
+@ApiTags('Reservations')
 @Controller('reservations')
 export class ReservationController {
   constructor(
@@ -12,12 +14,20 @@ export class ReservationController {
   ) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a seat reservation (30s TTL)' })
+  @ApiCreatedResponse({ description: 'Reservation created' })
+  @ApiConflictResponse({ description: 'Seats unavailable' })
   create(@Body() dto: CreateReservationDto) {
     return this.createReservation.execute(dto);
   }
 
   @Post(':id/confirm-payment')
-  confirm(@Param('id') id: string, @Body() dto: ConfirmPaymentDto) {
-    return this.confirmPayment.execute(id, dto.paymentRef);
+  @ApiOperation({ summary: 'Confirm payment and finalize sale' })
+  @ApiOkResponse({ description: 'Payment confirmed' })
+  confirm(
+    @Param('id') reservationId: string,
+    @Body() dto: ConfirmPaymentDto,
+  ) {
+    return this.confirmPayment.execute(reservationId, dto.paymentRef);
   }
 }

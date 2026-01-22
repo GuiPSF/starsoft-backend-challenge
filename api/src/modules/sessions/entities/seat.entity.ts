@@ -7,7 +7,12 @@ import {
 } from 'typeorm';
 import { Session } from './session.entity';
 
-export type SeatStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD';
+export enum SeatStatus {
+  AVAILABLE = 'AVAILABLE',
+  RESERVED = 'RESERVED',
+  SOLD = 'SOLD',
+}
+
 
 @Entity({ name: 'seats' })
 @Index(['sessionId', 'number'], { unique: true })

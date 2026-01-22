@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Session } from '../entities/session.entity';
-import { Seat } from '../entities/seat.entity';
+import { Seat, SeatStatus } from '../entities/seat.entity';
 import { CreateSessionDto } from './dto/create-session.dto';
 
 @Injectable()
@@ -25,7 +25,7 @@ export class CreateSessionUseCase {
         manager.create(Seat, {
           sessionId: savedSession.id,
           number: i + 1,
-          status: 'AVAILABLE',
+          status: SeatStatus.AVAILABLE,
         }),
       );
 

@@ -1,7 +1,7 @@
 import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { Reservation } from '../entities/reservation.entity';
-import { Seat } from '../../sessions/entities/seat.entity';
+import { Seat, SeatStatus } from '../../sessions/entities/seat.entity';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { RabbitPublisher } from '../../../infra/messaging/rabbitmq.publisher';
 import { RedisService } from '../../../infra/redis/redis.service';
@@ -39,7 +39,7 @@ export class CreateReservationUseCase {
       }
 
       // marcar assentos como RESERVED
-      for (const seat of seats) seat.status = 'RESERVED';
+      for (const seat of seats) seat.status = SeatStatus.RESERVED;
       await manager.save(Seat, seats);
 
       const reservation = manager.create(Reservation, {
