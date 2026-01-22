@@ -62,6 +62,7 @@ docker compose up --build
 - Swagger: http://localhost:3000/api-docs
 - RabbitMQ UI: http://localhost:15672 (guest / guest)
 - PostgreSQL: localhost:5432
+- Redis: localhost:6379
 
 ---
 
