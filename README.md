@@ -110,6 +110,13 @@ POST /sessions
 - Não há `FOR UPDATE` em queries com `JOIN`
 - Atualizações em lote (`WHERE id = ANY(...)`)
 
+### 4.1 Diferenciais Implementados
+- Swagger/OpenAPI completo com exemplos reais em todos os DTOs
+### Rate Limiting
+- Rate limiting global por IP implementado com `@nestjs/throttler` (ex.: 120 req/min).
+- Resposta padrão: HTTP 429 (Too Many Requests).
+
+
 ---
 
 ## 5. Endpoits da API
