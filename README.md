@@ -28,6 +28,7 @@ A solução foi pensada com foco em **robustez**, **escalabilidade horizontal** 
 - Suporte a **ACK/NACK manual**
 
 ### Cache / Coordenação — Redis
+- Utilizado principalmente para idempotência e coordenação
 - Infraestrutura auxiliar
 - Base para extensões futuras
 
@@ -53,7 +54,7 @@ A solução foi pensada com foco em **robustez**, **escalabilidade horizontal** 
 - Docker Compose
 
 ### Subir o ambiente
-```bash
+```
 docker compose up --build
 ```
 
@@ -66,15 +67,15 @@ docker compose up --build
 
 ---
 
-#### Popular dados iniciais
+#### Uso da API via Swagger
 
-Crie uma sessão via API
+A API possui documentação interativa via Swagger, acessível em:
 
-``` http
-POST /sessions
+http://localhost:3000/api-docs
+
+Fluxo sugerido para avaliação:
+1. Popular dados iniciais criando uma nova sessão (`POST /sessions`)
 ```
-
-``` json
 {
   "movie": "Duna 2",
   "startTime": "2026-01-21T20:00:00-03:00",
@@ -82,8 +83,11 @@ POST /sessions
   "priceCents": 2500,
   "seatCount": 16
 }
-
 ```
+2. Consultar assentos (`GET /sessions/{sessionId}/seats`)
+3. Criar reserva (`POST /reservations`)
+4. Confirmar pagamento (`POST /reservations/{reservationId}/confirm-payment`)
+
 
 ## 4. Estratégias Implementadas
 
@@ -98,7 +102,7 @@ POST /sessions
 ### Coordenação entre múltiplas instâncias
 
 - O PostgreSQL atua como **fonte única de verdade**
-- Locks no banco garantem exclusão mútua mesmo com múltiplas instânciasda API
+- Locks no banco garantem exclusão mútua mesmo com múltiplas instâncias da API
 - RabbitMQ permite comunicação assíncrona desacoplada
 
 ---
@@ -146,7 +150,7 @@ Resultado esperado: **1 sucesso (201/200)** + **9 falhas (409)**.
 
 Rodar
 
-``` bash
+```
 docker compose up --build
 docker compose exec api npm run test:e2e
 ```
@@ -156,18 +160,18 @@ Testes unitários com Jest (mocks para dependências externas)
 
 Rodar
 
-``` bash
+```
 docker compose exec api npm test
 ```
 
 
 ---
 
-## 5. Endpoits da API
+## 5. Endpoints da API
 
 #### Criar sessão
 
-``` http
+```
 POST /sessions
 ```
 
@@ -175,7 +179,7 @@ POST /sessions
 
 #### Consultar assentos
 
-``` http
+```
 GET /sessions/{sessionId}/seats
 ```
 
@@ -183,11 +187,11 @@ GET /sessions/{sessionId}/seats
 
 #### Criar Reserva
 
-``` http
+```
 POST /reservations
 ```
 
-```json
+```
 {
   "sessionId": "uuid",
   "userId": "uuid", //50ed9531-4b57-4670-8ae8-d8a72717ccb3 por exemplo
@@ -199,11 +203,11 @@ POST /reservations
 
 #### Confirmar Pagamento
 
-``` http
+```
 POST /reservations/{reservationId}/confirm-payment
 ```
 
-``` json
+```
 {
   "paymentRef": "TEST-123"
 }
@@ -213,7 +217,7 @@ POST /reservations/{reservationId}/confirm-payment
 
 #### Histórico de Compras
 
-``` http
+```
 GET /users/{userId}/purchases
 ```
 
@@ -243,8 +247,9 @@ GET /users/{userId}/purchases
 
 ## 7. Limitações Conhecidas
 
-- Migrations não foram utilizadas inicialmente (uso de `synchronize: true` em dev)
+- Migrations não foram utilizadas inicialmente (uso de `synchronize: true` em dev, não recomendado em produção)
 - Não há autenticação/autorização
+
 Essas decisões foram tomadas para priorizar o **core do problema proposto**
 
 ---
