@@ -6,23 +6,32 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Reservation } from '../entities/reservation.entity';
-import { Seat } from '../../sessions/entities/seat.entity';
+import { Seat, SeatStatus } from '../../sessions/entities/seat.entity';
 import { RabbitPublisher } from '../../../infra/messaging/rabbitmq.publisher';
 import { Session } from '../../sessions/entities/session.entity';
 import { Sale } from '../../sales/entities/sale.entity';
+import { IdempotencyService } from '../../../infra/redis/idempotency.service';
 
 @Injectable()
 export class ConfirmPaymentUseCase {
   constructor(
     private readonly dataSource: DataSource,
     private readonly publisher: RabbitPublisher,
+    private readonly idempo: IdempotencyService,
   ) {}
 
-  async execute(reservationId: string, paymentRef?: string) {
+  async execute(reservationId: string, paymentRef?: string, idempotencyKey?: string) {
+    if (idempotencyKey) {
+      const cached = await this.idempo.get<{ reservationId: string; status: string }>(
+        'reservations:confirm-payment',
+        idempotencyKey,
+      );
+      if (cached) return cached;
+    }
+
     const now = new Date();
 
     const result = await this.dataSource.transaction(async (manager) => {
-      // 1) Trava a reserva (sem JOIN) pra evitar corrida com o expirer
       const reservation = await manager
         .createQueryBuilder(Reservation, 'r')
         .setLock('pessimistic_write')
@@ -31,7 +40,7 @@ export class ConfirmPaymentUseCase {
 
       if (!reservation) throw new NotFoundException('Reservation not found');
 
-      // 2) Idempotência
+      // Idempotência no estado
       if (reservation.status === 'CONFIRMED') {
         return { status: 'CONFIRMED' as const, reservation };
       }
@@ -40,9 +49,7 @@ export class ConfirmPaymentUseCase {
         throw new ConflictException('Reservation is expired');
       }
 
-      // 3) Não confirma se já passou do tempo
       if (reservation.expiresAt <= now) {
-        // defensivo: marca expired
         await manager.update(
           Reservation,
           { id: reservation.id, status: 'PENDING' },
@@ -51,7 +58,6 @@ export class ConfirmPaymentUseCase {
         throw new ConflictException('Reservation is expired');
       }
 
-      // 4) Pega assentos da tabela de junção (sem join lock)
       const rows = await manager.query(
         `SELECT seat_id FROM reservation_seats WHERE reservation_id = $1`,
         [reservation.id],
@@ -62,7 +68,6 @@ export class ConfirmPaymentUseCase {
         throw new BadRequestException('Reservation has no seats');
       }
 
-      // 5) Trava os assentos e valida que ainda estão RESERVED
       const seats = await manager
         .createQueryBuilder(Seat, 's')
         .setLock('pessimistic_write')
@@ -73,34 +78,29 @@ export class ConfirmPaymentUseCase {
         throw new ConflictException('Some seats were not found');
       }
 
-      const notReserved = seats.find((s) => s.status !== 'RESERVED');
+      const notReserved = seats.find((s) => s.status !== SeatStatus.RESERVED);
       if (notReserved) {
         throw new ConflictException('Seats are not reserved anymore');
       }
 
-      // 6) Confirma reserva
       await manager.update(
         Reservation,
         { id: reservation.id, status: 'PENDING' },
         { status: 'CONFIRMED' },
       );
 
-      // 7) Marca assentos como SOLD
       await manager
         .createQueryBuilder()
         .update(Seat)
-        .set({ status: 'SOLD' })
+        .set({ status: SeatStatus.SOLD })
         .where('id = ANY(:ids)', { ids: seatIds })
         .execute();
 
-      // 8) Cria Sale (idempotente por reservationId)
       const session = await manager.findOne(Session, {
         where: { id: reservation.sessionId },
       });
 
-      if (!session) {
-        throw new ConflictException('Session not found');
-      }
+      if (!session) throw new ConflictException('Session not found');
 
       const totalPaidCents = session.priceCents * seatIds.length;
 
@@ -116,18 +116,18 @@ export class ConfirmPaymentUseCase {
           totalPaidCents,
           paymentRef: paymentRef ?? null,
         });
-
-        try {
-          await manager.save(Sale, sale);
-        } catch (e: any) {
-          // Se UNIQUE(reservationId) estourar por corrida, trata como idempotente
-        }
+        await manager.save(Sale, sale);
       }
 
-      return { status: 'CONFIRMED' as const, reservation, seatIds };
+      return { status: 'CONFIRMED' as const, reservation };
     });
 
-    // 9) Evento fora da transação
+    const response = { reservationId, status: result.status };
+
+    if (idempotencyKey) {
+      await this.idempo.set('reservations:confirm-payment', idempotencyKey, response, 86400);
+    }
+
     if (result.status === 'CONFIRMED') {
       await this.publisher.publish('payment.confirmed', {
         reservationId,
@@ -137,9 +137,6 @@ export class ConfirmPaymentUseCase {
       });
     }
 
-    return {
-      reservationId,
-      status: result.status,
-    };
+    return response;
   }
 }

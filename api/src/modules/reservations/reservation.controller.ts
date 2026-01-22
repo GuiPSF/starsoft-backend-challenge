@@ -1,5 +1,5 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
-import { ApiConflictResponse, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Headers, Param, Post } from '@nestjs/common';
+import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateReservationDto } from './application/dto/create-reservation.dto';
 import { ConfirmPaymentDto } from './application/dto/confirm-payment.dto';
 import { CreateReservationUseCase } from './application/create-reservation.usecase';
@@ -14,20 +14,33 @@ export class ReservationController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a seat reservation (30s TTL)' })
-  @ApiCreatedResponse({ description: 'Reservation created' })
-  @ApiConflictResponse({ description: 'Seats unavailable' })
-  create(@Body() dto: CreateReservationDto) {
-    return this.createReservation.execute(dto);
+  @ApiOperation({ summary: 'Reserve seats (TTL 30s)' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description: 'Optional key to safely retry this request without duplicating reservations',
+  })
+  @ApiOkResponse({ description: 'Reservation created' })
+  create(
+    @Body() dto: CreateReservationDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.createReservation.execute(dto, idempotencyKey);
   }
 
   @Post(':id/confirm-payment')
-  @ApiOperation({ summary: 'Confirm payment and finalize sale' })
+  @ApiOperation({ summary: 'Confirm payment and finalize reservation into sale' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description: 'Optional key to safely retry payment confirmation without double-processing',
+  })
   @ApiOkResponse({ description: 'Payment confirmed' })
   confirm(
     @Param('id') reservationId: string,
     @Body() dto: ConfirmPaymentDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.confirmPayment.execute(reservationId, dto.paymentRef);
+    return this.confirmPayment.execute(reservationId, dto.paymentRef, idempotencyKey);
   }
 }

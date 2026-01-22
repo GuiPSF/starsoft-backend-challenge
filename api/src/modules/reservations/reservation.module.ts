@@ -9,6 +9,7 @@ import { ExpireReservationsJob } from './application/expire-reservations.job';
 import { RabbitPublisher } from '../../infra/messaging/rabbitmq.publisher';
 import { RedisService } from '../../infra/redis/redis.service';
 import { ConfirmPaymentUseCase } from './application/confirm-payment.usecase';
+import { IdempotencyService } from '../../infra/redis/idempotency.service';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ConfirmPaymentUseCase } from './application/confirm-payment.usecase';
     ExpireReservationsJob,
     RabbitPublisher,
     RedisService,
+    IdempotencyService,
   ],
 })
 export class ReservationModule {}

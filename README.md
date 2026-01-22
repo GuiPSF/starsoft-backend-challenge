@@ -94,7 +94,7 @@ POST /sessions
 
 ---
 
-###Coordenação entre múltiplas instâncias
+### Coordenação entre múltiplas instâncias
 
 - O PostgreSQL atua como **fonte única de verdade**
 - Locks no banco garantem exclusão mútua mesmo com múltiplas instânciasda API
@@ -109,6 +109,14 @@ POST /sessions
     2. Seats
 - Não há `FOR UPDATE` em queries com `JOIN`
 - Atualizações em lote (`WHERE id = ANY(...)`)
+
+### Idempotência (retries seguros)
+Endpoints críticos suportam o header `Idempotency-Key` para permitir retries (timeout/reenvio) sem criar reservas/vendas duplicadas.
+
+- `POST /reservations`
+- `POST /reservations/{id}/confirm-payment`
+
+Implementação: cache de resposta no Redis com TTL.
 
 ### 4.1 Diferenciais Implementados
 
@@ -243,7 +251,6 @@ Essas decisões foram tomadas para priorizar o **core do problema proposto**
 
 ## 8. Melhorias Futuras
 - Migrations versionadas com TypeORM
-- Idempotency-Key no `confirm-payment`
 - Observabilidade com métricas (Prometheus)
 - Autenticação JWT
 - Frontend para visualização das sessões
