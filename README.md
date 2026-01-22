@@ -142,6 +142,16 @@ cd api
 npm run test:e2e
 ```
 
+#### Unit tests
+Testes unitários com Jest (mocks para dependências externas)
+
+Rodar
+
+``` bash
+cd api
+npm run test
+```
+
 
 ---
 
@@ -227,7 +237,6 @@ GET /users/{userId}/purchases
 
 - Migrations não foram utilizadas inicialmente (uso de `synchronize: true` em dev)
 - Não há autenticação/autorização
-- Pagamento é simulado
 Essas decisões foram tomadas para priorizar o **core do problema proposto**
 
 ---
