@@ -4,9 +4,17 @@ import { SessionModule } from './modules/sessions/session.module';
 import { ReservationModule } from './modules/reservations/reservation.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { RabbitAuditConsumer } from './infra/messaging/rabbitmq.audit-consumer';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 120,
+      },
+    ]),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DATABASE_HOST,
@@ -21,6 +29,9 @@ import { RabbitAuditConsumer } from './infra/messaging/rabbitmq.audit-consumer';
     ReservationModule,
     SalesModule,
   ],
-  providers: [RabbitAuditConsumer],
+  providers: [
+    RabbitAuditConsumer,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
