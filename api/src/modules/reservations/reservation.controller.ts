@@ -16,7 +16,7 @@ export class ReservationController {
   @Post()
   @ApiOperation({ summary: 'Reserve seats (TTL 30s)' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-Key',
     required: false,
     description: 'Optional key to safely retry this request without duplicating reservations',
   })
@@ -31,7 +31,7 @@ export class ReservationController {
   @Post(':id/confirm-payment')
   @ApiOperation({ summary: 'Confirm payment and finalize reservation into sale' })
   @ApiHeader({
-    name: 'Idempotency-Key',
+    name: 'idempotency-Key',
     required: false,
     description: 'Optional key to safely retry payment confirmation without double-processing',
   })
