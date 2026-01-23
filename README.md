@@ -54,6 +54,14 @@ A solução foi pensada com foco em **robustez**, **escalabilidade horizontal** 
 - Docker Compose
 
 ### Subir o ambiente
+Entre na pasta `starsoft-backend-challenge`
+
+```
+cd starsoft-backend-challenge
+```
+
+Após isto, rode
+
 ```
 docker compose up --build
 ```
@@ -74,6 +82,7 @@ A API possui documentação interativa via Swagger, acessível em:
 http://localhost:3000/api-docs
 
 Fluxo sugerido para avaliação:
+
 1. Popular dados iniciais criando uma nova sessão (`POST /sessions`)
 ```
 {
@@ -87,6 +96,7 @@ Fluxo sugerido para avaliação:
 2. Consultar assentos (`GET /sessions/{sessionId}/seats`)
 3. Criar reserva (`POST /reservations`)
 4. Confirmar pagamento (`POST /reservations/{reservationId}/confirm-payment`)
+5. Checar o histórico de compras de um usuário (`GET /users/{userId}/purchases`)
 
 
 ## 4. Estratégias Implementadas
